@@ -60,6 +60,11 @@ def get_tools() -> list[dict]:
                 "required": ["path", "content"]}},
         },
         {"type": "function", "function": {
+            "name": "repo_map",
+            "description": "查看整个项目的结构地图(目录树+各文件的函数/类定义)。开始任务前如果不确定项目结构就先调用这个。",
+            "parameters": {"type": "object", "properties": {}}},
+        },
+        {"type": "function", "function": {
             "name": "search_code",
             "description": "在整个项目中搜索代码/文本内容(支持正则)。找相关代码时优先用这个，而不是逐个读文件。",
             "parameters": {"type": "object", "properties": {
@@ -92,7 +97,7 @@ SYSTEM_PROMPT = """你是 SecondBrain 团队打造的图形化编码助手 AI De
 
 工作规则:
 1. 你只能在指定的项目目录内活动, 所有文件路径都相对项目根
-2. 找代码: 优先用 search_code 搜索关键词定位文件和行号, 再 read_file 看上下文
+2. 了解全局: 开局可调 repo_map 看项目结构地图; 找代码用 search_code 定位后再 read_file
 3. 小改动优先用 replace_in_file(提供唯一的旧片段+新片段); 整个文件重写才用 write_file
 4. 改完可以跑命令验证(如 python -c / npm test 等)
 5. 用户说中文你就用中文思考和汇报
@@ -457,6 +462,14 @@ async def run_agent_stream(project: str, message: str, history: list[dict],
 
     system = SYSTEM_PROMPT.format(root=root, os=sys.platform)
 
+    # 仓库地图自动注入(60s缓存)
+    try:
+        rmap = repomap.cached_map(root)
+        if rmap:
+            system += f"\n\n【仓库地图(当前项目结构与关键定义)】\n{rmap}"
+    except Exception:
+        pass
+
     # 项目规则文件: AGENTS.md / CLAUDE.md
     for rulefile in ("AGENTS.md", "CLAUDE.md"):
         rf = Path(root) / rulefile
@@ -518,6 +531,9 @@ async def run_agent_stream(project: str, message: str, history: list[dict],
                 result, ok = _tool_write_file(root, args, emit)
             elif name == "search_code":
                 result, ok = _tool_search_code(root, args)
+            elif name == "repo_map":
+                from . import repomap as _rm
+                result, ok = _rm.tool_repo_map(root, args)
             elif name == "replace_in_file":
                 result, ok = await asyncio.to_thread(
                     _tool_replace_in_file, root, args, emit)

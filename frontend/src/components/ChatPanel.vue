@@ -102,12 +102,12 @@ function scroll() {
 function toolIcon(t) {
   return { list_dir: "📂", read_file: "📖", write_file: "✏️",
            run_command: "⚡", search_code: "🔍",
-           replace_in_file: "🩹" }[t] || "🔧"
+           replace_in_file: "🩹", repo_map: "🗺️" }[t] || "🔧"
 }
 function toolName(t) {
   return { list_dir: "浏览目录", read_file: "读取文件", write_file: "写入文件",
            run_command: "执行命令", search_code: "搜索代码",
-           replace_in_file: "精确修改" }[t] || t
+           replace_in_file: "精确修改", repo_map: "仓库地图" }[t] || t
 }
 function argsText(item) {
   const a = item.args || {}
