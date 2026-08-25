@@ -20,20 +20,20 @@ function homeDir() {
 function startBackend() {
   const res = process.resourcesPath || path.join(__dirname, "resources")
   const candidates = [
-    path.join(res, "backend", "AIDesk-backend", "AIDesk-backend.exe"),
-    path.join(__dirname, "..", "server", "AIDesk-backend.exe"),
+    path.join(res, "backend", "NebulaCode-backend", "NebulaCode-backend.exe"),
+    path.join(__dirname, "..", "server", "NebulaCode-backend.exe"),
   ]
   const exe = candidates.find((p) => {
     try { return require("fs").existsSync(p) } catch (e) { return false }
   })
   if (!exe) {
-    console.log("[AIDesk] 未找到后端引擎, 若已手动启动可直接使用")
+    console.log("[NebulaCode] 未找到后端引擎, 若已手动启动可直接使用")
     return
   }
   const home = homeDir()
   backendProc = spawn(exe, [], {
     cwd: home,
-    env: { ...process.env, AI_DESK_HOME: home },
+    env: { ...process.env, NEBULACODE_HOME: home },
     stdio: "ignore",
     windowsHide: true,
   })
@@ -53,7 +53,7 @@ function waitServer(cb, tries = 60) {
 function createWindow() {
   win = new BrowserWindow({
     width: 1400, height: 900,
-    title: "AI Desk",
+    title: "NebulaCode",
     autoHideMenuBar: true,
     backgroundColor: "#0d1017",
     webPreferences: { contextIsolation: true },

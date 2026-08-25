@@ -38,7 +38,7 @@ jobs:
         working-directory: backend
         run: >-
           pyinstaller --onedir --noconsole
-          --name AIDesk-backend server_entry.py
+          --name NebulaCode-backend server_entry.py
           --paths .
           --add-data "../frontend/dist;frontend_dist"
           --hidden-import uvicorn.logging
@@ -57,15 +57,15 @@ jobs:
       - name: Assemble portable package
         shell: pwsh
         run: |
-          $root = "package/AIDesk"
+          $root = "package/NebulaCode"
           New-Item -ItemType Directory -Force -Path "$root/resources/backend", "$root/projects" | Out-Null
           Copy-Item electron/out/win-unpacked/* $root -Recurse -Force
-          Copy-Item backend/dist/AIDesk-backend/* "$root/resources/backend/" -Recurse -Force
+          Copy-Item backend/dist/NebulaCode-backend/* "$root/resources/backend/" -Recurse -Force
           Copy-Item README.md $root/
-          Compress-Archive -Path package/* -DestinationPath AIDesk-Windows-x64.zip
+          Compress-Archive -Path package/* -DestinationPath NebulaCode-Windows-x64.zip
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: AIDesk-Windows-x64
-          path: AIDesk-Windows-x64.zip
+          name: NebulaCode-Windows-x64
+          path: NebulaCode-Windows-x64.zip

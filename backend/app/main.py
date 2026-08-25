@@ -16,14 +16,14 @@ from . import agent
 
 import sys as _sys
 
-_home = os.environ.get("AI_DESK_HOME")
+_home = os.environ.get("NEBULACODE_HOME")
 if getattr(_sys, "frozen", False) and _home:
     _dist = Path(_home) / "frontend_dist"
 else:
     _dist = Path(__file__).resolve().parent.parent.parent / "frontend" / "dist"
 from .agent import resolve_approval
 
-app = FastAPI(title="AI Desk")
+app = FastAPI(title="NebulaCode")
 app.add_middleware(
     CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"]
 )
@@ -100,7 +100,7 @@ def set_settings(body: dict):
 
 # ---------------- 模型方案管理 ----------------
 
-_home = os.environ.get("AI_DESK_HOME")
+_home = os.environ.get("NEBULACODE_HOME")
 BASE_DIR = (Path(_home) if _home else
             (Path(sys.executable).resolve().parent
              if getattr(sys, "frozen", False)

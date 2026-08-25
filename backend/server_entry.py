@@ -1,7 +1,7 @@
 """打包版后端服务入口"""
 import os
 
-home = os.environ.get("AI_DESK_HOME")
+home = os.environ.get("NEBULACODE_HOME")
 if home:
     os.chdir(home)
 

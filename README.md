@@ -1,11 +1,11 @@
-# AI Desk — 智能图形化 AI 编码助手
+# NebulaCode — 智能图形化 AI 编码助手
 
 不用终端、换模型一点就切、同时跑多个也卡不死。
 
 ## Windows 版使用
 
-1. 解压 `AIDesk-Windows-x64.zip` 到任意位置
-2. 双击 `AIDesk.exe`（首次弹 SmartScreen 警告 → 更多信息 → 仍要运行）
+1. 解压 `NebulaCode-Windows-x64.zip` 到任意位置
+2. 双击 `NebulaCode.exe`（首次弹 SmartScreen 警告 → 更多信息 → 仍要运行）
 3. 顶栏输入你的项目目录绝对路径 → 打开项目
 4. ⚙ 模型 → 添加/选择模型方案并填入 API Key
 5. 对话区下达任务，观察步骤卡片与资源仪表盘

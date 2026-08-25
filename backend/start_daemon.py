@@ -1,4 +1,4 @@
-"""双fork守护启动 AI Desk 后端"""
+"""双fork守护启动 NebulaCode 后端"""
 import os, sys
 DIR = os.path.dirname(os.path.abspath(__file__))
 if os.fork(): sys.exit(0)

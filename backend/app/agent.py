@@ -93,7 +93,7 @@ def get_tools() -> list[dict]:
     ]
 
 
-SYSTEM_PROMPT = """你是 SecondBrain 团队打造的图形化编码助手 AI Desk, 运行在用户的本机上。
+SYSTEM_PROMPT = """你是 SecondBrain 团队打造的图形化编码助手 NebulaCode, 运行在用户的本机上。
 
 工作规则:
 1. 你只能在指定的项目目录内活动, 所有文件路径都相对项目根

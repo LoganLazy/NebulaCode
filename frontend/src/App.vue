@@ -2,7 +2,7 @@
   <div class="app">
     <!-- 顶栏 -->
     <header class="topbar">
-      <span class="brand">🛠 AI Desk</span>
+      <span class="brand">🛠 NebulaCode</span>
       <input v-model="project" class="proj-input"
              placeholder="输入项目目录绝对路径，如 /home/xxx/myproject"
              @keydown.enter="openProject" />
@@ -134,7 +134,7 @@ import FileTree from "./components/FileTree.vue"
 import ChatPanel from "./components/ChatPanel.vue"
 import ResPanel from "./components/ResPanel.vue"
 
-const project = ref(localStorage.getItem("aidesk.project") || "")
+const project = ref(localStorage.getItem("nebulacode.project") || "")
 const projectOpen = ref(false)
 const showCfg = ref(false)
 
@@ -153,7 +153,7 @@ watch(autoGit, async (v) => {
 const tasks = ref([])
 const activeId = ref("")
 const runningMap = ref({})
-const runLimit = ref(parseInt(localStorage.getItem("aidesk.limit") || "2"))
+const runLimit = ref(parseInt(localStorage.getItem("nebulacode.limit") || "2"))
 
 const runningCount = computed(() =>
   Object.values(runningMap.value).filter(Boolean).length)
@@ -171,7 +171,7 @@ function closeTask(id) {
   if (activeId.value === id && tasks.value.length) activeId.value = tasks.value[0].id
 }
 function setRunning(id, state) { runningMap.value[id] = state }
-watch(runLimit, (v) => localStorage.setItem("aidesk.limit", String(v)))
+watch(runLimit, (v) => localStorage.setItem("nebulacode.limit", String(v)))
 const editing = ref(null)
 const testing = ref(false)
 const testMsg = ref("")
@@ -196,7 +196,7 @@ async function openProject() {
   try {
     await api.fsList(p)
     projectOpen.value = true
-    localStorage.setItem("aidesk.project", p)
+    localStorage.setItem("nebulacode.project", p)
   } catch (e) {
     alert("打开失败: " + e.message)
   }
