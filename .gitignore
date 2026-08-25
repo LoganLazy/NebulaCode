@@ -1,0 +1,10 @@
+__pycache__/
+*.pyc
+backend/.venv/
+backend/.pid
+backend/last-run.log
+backend/dist/
+frontend/node_modules/
+frontend/dist/
+runtime/
+*.sse

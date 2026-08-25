@@ -1,0 +1,6 @@
+fastapi
+uvicorn[standard]
+psutil
+httpx
+python-multipart
+pydantic
