@@ -50,6 +50,11 @@
           </details>
         </div>
 
+        <!-- token用量 -->
+        <div v-else-if="item.kind === 'usage'" class="usage-line">
+          ⚡ 本任务消耗: 输入 {{ item.prompt }} · 输出 {{ item.completion }} tokens · {{ item.calls }} 次模型调用
+        </div>
+
         <!-- 审批 -->
         <div v-else-if="item.kind === 'approval'" class="approval">
           <div class="ap-head">🛡 需要你的批准</div>
@@ -166,6 +171,9 @@ async function send() {
         timeline.value.push({ kind: "diff", path: ev.path, diff: ev.diff, created: ev.created })
         emit("changed")
         scroll()
+      } else if (ev.type === "usage") {
+        cur = null
+        timeline.value.push({ kind: "usage", ...ev })
       } else if (ev.type === "approval_required") {
         cur = null
         timeline.value.push({
@@ -184,12 +192,12 @@ async function send() {
   busy.value = false
   emit("running", false)
   scroll()
+  scroll()
 }
 
 function decide(item, allow) {
   api.approve(item.request_id, allow)
   item.resolved = allow ? "✓ 已批准，正在执行…" : "✕ 已拒绝"
-  approvalResolve = null
 }
 </script>
 
@@ -311,4 +319,6 @@ details pre { margin: 6px 0 0; font-size: 12px; line-height: 1.55;
   color: #fff; border: none; border-radius: 11px; font-size: 14.5px;
 }
 .inputbar button:disabled { opacity: .45; cursor: default; }
+
+.usage-line { text-align: center; color: var(--muted); font-size: 12px; margin: 10px auto 16px; }
 </style>

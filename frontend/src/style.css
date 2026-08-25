@@ -55,3 +55,9 @@ input, textarea, select {
 .t-close:hover { opacity: 1; color: #ff9b9b; }
 .tab.add { border-style: dashed; }
 .limit-warn { color: var(--warn); font-size: 12.5px; white-space: nowrap; }
+
+.git-toggle {
+  display: flex; align-items: center; gap: 5px;
+  color: var(--muted); font-size: 12.5px; cursor: pointer;
+  white-space: nowrap;
+}

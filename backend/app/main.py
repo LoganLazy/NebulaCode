@@ -75,6 +75,23 @@ def rollback(b: RollbackIn):
     return {"code": 0, "msg": f"已回滚到 {bk_name}"}
 
 
+# ---------------- 运行设置 ----------------
+
+@app.get("/api/settings")
+def get_settings():
+    from . import settings as _st
+    return dict(_st._CACHE or {})
+
+
+@app.post("/api/settings")
+def set_settings(body: dict):
+    from . import settings as _st
+    allowed = {"AUTO_GIT_COMMIT"}
+    patch = {k: bool(v) for k, v in body.items() if k in allowed}
+    _st.set_many(patch)
+    return {"code": 0}
+
+
 # ---------------- 模型方案管理 ----------------
 
 DATA_DIR = Path(__file__).resolve().parent / "data"
@@ -285,11 +302,37 @@ def resolve_model(req: AgentReq) -> dict:
     raise HTTPException(400, "没有已激活的模型方案，请先在设置里添加并启用一个")
 
 
-_sessions: dict[str, list[dict]] = {}
+SESSIONS_DIR = Path(__file__).resolve().parent / "data" / "sessions"
+SESSIONS_DIR.mkdir(parents=True, exist_ok=True)
+_sessions: dict[str, dict] = {}
 
 
-def _session_history(key: str) -> list[dict]:
-    return _sessions.setdefault(key, [])
+def _sfile(key: str) -> Path:
+    import hashlib
+    h = hashlib.md5(key.encode()).hexdigest()[:16]
+    return SESSIONS_DIR / f"{h}.json"
+
+
+def _get_state(key: str) -> dict:
+    if key in _sessions:
+        return _sessions[key]
+    f = _sfile(key)
+    st = {"hist": [], "summary": "", "summarized": 0}
+    if f.exists():
+        try:
+            st.update(json.loads(f.read_text(encoding="utf-8")))
+        except Exception:
+            pass
+    _sessions[key] = st
+    return st
+
+
+def _persist(key: str):
+    st = _sessions.get(key)
+    if st is not None:
+        st["hist"] = st["hist"][-80:]
+        _sfile(key).write_text(json.dumps(st, ensure_ascii=False),
+                               encoding="utf-8")
 
 
 @app.post("/api/agent/chat/stream")
@@ -298,32 +341,44 @@ def agent_chat(req: AgentReq):
         raise HTTPException(400, f"项目目录不存在: {req.project}")
     model_cfg = resolve_model(req)
     skey = f"{req.project}::{req.session_id}"
-    history = _session_history(skey)
-    user_msg = {"role": "user", "content": req.message}
+    st = _get_state(skey)
 
     async def gen():
         yield 'data: {"type": "start"}\n\n'
-        pieces = []
+        stats = {}
+        answer_parts = []
         try:
-            async for ev in agent.run_agent_stream(
-                    req.project, req.message, history + [user_msg],
-                    model_cfg, skey):
-                if ev["type"] == "token":
-                    pieces.append(ev["text"])
-                elif ev["type"] == "approval_required":
-                    # 审批事件立即透传
+            # 长对话滚动压缩
+            pending_n = len(st["hist"]) - st["summarized"]
+            extra_ctx = st["summary"]
+            if pending_n >= 12:
+                older = st["hist"][st["summarized"]: st["summarized"] + pending_n - 6]
+                try:
+                    sm = await agent.summarize_messages(model_cfg, older,
+                                                        st["summary"])
+                    if sm and sm != st["summary"]:
+                        st["summary"] = sm.strip()[:2000]
+                        st["summarized"] += len(older)
+                        extra_ctx = st["summary"]
+                except Exception:
                     pass
+
+            async for ev in agent.run_agent_stream(
+                    req.project, req.message, st["hist"],
+                    model_cfg, skey, extra_context=extra_ctx, stats=stats):
+                if ev["type"] == "token":
+                    answer_parts.append(ev["text"])
                 yield f"data: {json.dumps(ev, ensure_ascii=False)}\n\n"
-            answer = "".join(pieces).strip()
-            history.append(user_msg)
+
+            st["hist"].append(user_msg := {"role": "user",
+                                           "content": req.message})
+            answer = "".join(answer_parts).strip()
             if answer:
-                history.append({"role": "assistant", "content": answer})
-            if len(history) > 60:
-                del history[:20]
+                st["hist"].append({"role": "assistant", "content": answer})
+            _persist(skey)
             yield 'data: {"type": "done"}\n\n'
         except Exception as e:
-            yield json.dumps({"type": "error", "msg": str(e)}) and \
-                f'data: {json.dumps({"type": "error", "msg": str(e)}, ensure_ascii=False)}\n\n'
+            yield f'data: {json.dumps({"type": "error", "msg": str(e)}, ensure_ascii=False)}\n\n'
             yield 'data: {"type": "done"}\n\n'
 
     return StreamingResponse(gen(), media_type="text/event-stream",

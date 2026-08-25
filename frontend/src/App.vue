@@ -10,6 +10,9 @@
         {{ projectOpen ? "✓ 已打开" : "打开项目" }}
       </button>
       <button class="cfg-btn" @click="showCfg = true">⚙ 模型</button>
+      <label class="git-toggle" title="AI每次改文件后自动git提交检查点">
+        <input type="checkbox" v-model="autoGit" /> Git检查点
+      </label>
       <span class="limit-ctl" title="并发任务上限">
         🔀并发上限
         <input type="number" min="1" max="6" v-model.number="runLimit" class="limit-input" />
@@ -136,6 +139,17 @@ const projectOpen = ref(false)
 const showCfg = ref(false)
 
 const mcfg = ref({ profiles: [], active: "" })
+const autoGit = ref(false)
+
+watch(autoGit, async (v) => {
+  try {
+    await fetch("/api/settings", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ AUTO_GIT_COMMIT: v })
+    })
+  } catch (e) {}
+})
 const tasks = ref([])
 const activeId = ref("")
 const runningMap = ref({})

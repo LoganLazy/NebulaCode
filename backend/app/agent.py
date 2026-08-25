@@ -80,8 +80,37 @@ SYSTEM_PROMPT = """你是 SecondBrain 团队打造的图形化编码助手 AI De
 操作系统: {os}"""
 
 
-async def _chat(model_cfg: dict, messages: list[dict], tools: list[dict]):
-    """流式调用模型, 返回 (content, tool_calls_list)"""
+async def _chat(model_cfg: dict, messages: list[dict], tools: list[dict],
+                stats: dict | None = None):
+    """流式调用模型(带524/429重试), 返回 (content, tool_calls, finish)
+
+    stats: 可传入dict用于累计 usage/calls 统计
+    """
+    last_err = None
+    for attempt in range(3):
+        try:
+            return await _chat_once(model_cfg, messages, tools, stats)
+        except httpx.HTTPStatusError as e:
+            last_err = e
+            code = e.response.status_code if e.response is not None else 0
+            if code in (520, 521, 522, 524, 429) and attempt < 2:
+                wait = 8 * (attempt + 1)
+                print(f"[模型] 上游{code}, {wait}s后重试({attempt + 1}/2)",
+                      flush=True)
+                import asyncio as _aio
+                await _aio.sleep(wait)
+                continue
+            raise
+        except Exception:
+            raise
+    raise last_err
+
+
+async def _chat_once(model_cfg: dict, messages: list[dict], tools: list[dict],
+                     stats: dict | None = None):
+    import asyncio as _aio
+
+    stats = stats if stats is not None else {}
     content_parts: list[str] = []
     pending: dict[int, dict] = {}
     finish = ""
@@ -98,6 +127,7 @@ async def _chat(model_cfg: dict, messages: list[dict], tools: list[dict]):
                 "temperature": 0.3,
                 "max_tokens": 4000,
                 "stream": True,
+                "stream_options": {"include_usage": True},
             },
         ) as r:
             r.raise_for_status()
@@ -111,32 +141,45 @@ async def _chat(model_cfg: dict, messages: list[dict], tools: list[dict]):
                     j = json.loads(payload)
                 except Exception:
                     continue
+
+                u_top = j.get("usage")
+                if u_top:
+                    stats["prompt"] = stats.get("prompt", 0) + (u_top.get("prompt_tokens") or 0)
+                    stats["completion"] = stats.get("completion", 0) + (u_top.get("completion_tokens") or 0)
+
                 choices = j.get("choices") or []
                 if not choices:
                     continue
                 choice = choices[0]
+                if choice.get("finish_reason"):
+                    finish = choice["finish_reason"]
                 delta = choice.get("delta") or {}
                 piece = delta.get("content")
                 if piece:
                     content_parts.append(piece)
                 for tc in delta.get("tool_calls") or []:
-                    try:
-                        idx = tc.get("index") or 0
-                        fn = tc.get("function") or {}
-                        slot = pending.setdefault(
-                            idx, {"id": "", "name": "", "args": ""})
-                        if tc.get("id"):
-                            slot["id"] = tc["id"]
-                        if fn.get("name"):
-                            slot["name"] = fn["name"]
-                        arg = fn.get("arguments")
-                        if isinstance(arg, str):
-                            slot["args"] += arg
-                    except Exception as te:
-                        print(f"[agent] tool_call分片异常: {te} raw={tc}",
-                              flush=True)
-                if choice.get("finish_reason"):
-                    finish = choice["finish_reason"]
+                    idx = tc.get("index") or 0
+                    fn = tc.get("function") or {}
+                    slot = pending.setdefault(idx, {"id": "", "name": "", "args": ""})
+                    if tc.get("id"):
+                        slot["id"] = tc["id"]
+                    if fn.get("name"):
+                        slot["name"] = fn["name"]
+                    arg = fn.get("arguments")
+                    if isinstance(arg, str):
+                        slot["args"] += arg
+
+    # 供应商不回usage时按字符估算(中文≈1字/token, 英文≈4字符/token)
+    if not stats.get("prompt"):
+        def _est(t: str) -> int:
+            cjk = len(re.findall(r"[\u4e00-\u9fff]", t))
+            return int(cjk + (len(t) - cjk) / 3.5)
+        prompt_text = "".join(m.get("content") or "" for m in messages)
+        stats["prompt"] = _est(prompt_text)
+        stats["completion"] = _est("".join(content_parts))
+        stats["estimated"] = True
+
+    stats["calls"] = stats.get("calls", 0) + 1
 
     content = "".join(content_parts)
     calls = []
@@ -150,8 +193,6 @@ async def _chat(model_cfg: dict, messages: list[dict], tools: list[dict]):
                       "name": c["name"], "args": args})
     return content, calls, finish
 
-
-# ---------------- 工具实现 ----------------
 
 def _tool_list_dir(root: str, args: dict):
     path, err = safe_path(root, args.get("path", "."))
@@ -202,10 +243,28 @@ def _tool_write_file(root: str, args: dict, emit):
     fp.parent.mkdir(parents=True, exist_ok=True)
     fp.write_text(new_content, encoding="utf-8")
 
-    diff = "\n".join(difflib.unified_diff(
+    # Git检查点(可选开关, 仅当项目是git仓库时)
+    from . import settings as _settings
+    if _settings.get("AUTO_GIT_COMMIT") and (Path(root) / ".git").exists():
+        try:
+            import shutil as _sh
+            import subprocess as _sp
+            gitbin = _sh.which("git") or "/home/lazyease/video-translator/gitport/usr/bin/git"
+            _sp.run([gitbin, "add", "-A"], cwd=root,
+                    capture_output=True, timeout=30)
+            _sp.run([gitbin, "-c", "user.name=AI Desk",
+                     "-c", "user.email=ai-desk@local",
+                     "commit", "-m",
+                     f"AI Desk: update {args.get('path', '')}"],
+                    cwd=root, capture_output=True, timeout=30)
+        except Exception as e:
+            print(f"[git] 检查点失败: {e}", flush=True)
+
+    fp_diff = difflib.unified_diff(
         old_content.splitlines(), new_content.splitlines(),
         fromfile=f"a/{args.get('path')}", tofile=f"b/{args.get('path')}",
-        lineterm=""))
+        lineterm="")
+    diff = "\n".join(fp_diff)
     if len(diff) > 6000:
         diff = diff[:6000] + "\n...(diff截断)"
     emit({"type": "diff", "path": args.get("path"),
@@ -234,10 +293,31 @@ def _exec_command(root: str, cmd: str, timeout: int) -> tuple[str, bool]:
     return summary, proc.returncode == 0
 
 
+async def summarize_messages(model_cfg: dict, msgs: list[dict],
+                             prev_summary: str) -> str:
+    """把较旧的一批对话压缩成滚动摘要"""
+    text = "\n".join(f"{m['role']}: {str(m['content'])[:400]}" for m in msgs)
+    base = prev_summary + "\n" if prev_summary else ""
+    try:
+        content, _, _ = await _chat(
+            model_cfg,
+            [{"role": "system", "content":
+              "把下面的AI协作历史合并成一段简洁的滚动摘要(300字内), "
+              "保留: 用户目标、已完成的修改、重要决定。只返回摘要正文。"},
+             {"role": "user", "content": base + "\n" + text}],
+            tools=[], temperature=0.2)
+        return content
+    except Exception:
+        return prev_summary
+
+
+
 # ---------------- 主循环 ----------------
 
 async def run_agent_stream(project: str, message: str, history: list[dict],
-                           model_cfg: dict, session_key: str):
+                           model_cfg: dict, session_key: str,
+                           extra_context: str | None = None,
+                           stats: dict | None = None):
     """异步生成器: 逐步产出事件"""
     root = os.path.abspath(project)
     emit_events: list[dict] = []
@@ -246,6 +326,20 @@ async def run_agent_stream(project: str, message: str, history: list[dict],
         emit_events.append(ev)
 
     system = SYSTEM_PROMPT.format(root=root, os=sys.platform)
+
+    # 项目规则文件: AGENTS.md / CLAUDE.md
+    for rulefile in ("AGENTS.md", "CLAUDE.md"):
+        rf = Path(root) / rulefile
+        if rf.exists():
+            try:
+                rules = rf.read_text(encoding="utf-8", errors="ignore")[:6000]
+                system += f"\n\n【项目规则({rulefile})——必须严格遵守】\n{rules}"
+            except Exception:
+                pass
+            break
+
+    if extra_context:
+        system += f"\n\n【此前对话的滚动摘要】\n{extra_context}"
     messages = [{"role": "system", "content": system}]
     for h in history[-10:]:
         messages.append({"role": h["role"], "content": h["content"]})
@@ -255,7 +349,8 @@ async def run_agent_stream(project: str, message: str, history: list[dict],
 
     for iteration in range(MAX_ITER):
         try:
-            content, calls, _ = await _chat(model_cfg, messages, tools)
+            content, calls, finish = await _chat(model_cfg, messages, tools,
+                                                 stats=stats)
         except Exception as e:
             import traceback
             tb = traceback.format_exc()[-600:]
@@ -346,4 +441,9 @@ async def run_agent_stream(project: str, message: str, history: list[dict],
 
     for ev in emit_events:
         yield ev
+    if stats and stats.get("calls"):
+        print(f"[usage] {stats}", flush=True)
+        yield {"type": "usage", **stats}
+    else:
+        print(f"[usage] 无统计数据 stats={stats}", flush=True)
     yield {"type": "done"}
