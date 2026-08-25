@@ -20,6 +20,7 @@ function homeDir() {
 function startBackend() {
   const res = process.resourcesPath || path.join(__dirname, "resources")
   const candidates = [
+    path.join(res, "backend", "NebulaCode-backend.exe"),
     path.join(res, "backend", "NebulaCode-backend", "NebulaCode-backend.exe"),
     path.join(__dirname, "..", "server", "NebulaCode-backend.exe"),
   ]
@@ -50,7 +51,7 @@ function waitServer(cb, tries = 60) {
   req.setTimeout(1500, () => req.destroy())
 }
 
-function createWindow() {
+function createWindow(backendOk) {
   win = new BrowserWindow({
     width: 1400, height: 900,
     title: "NebulaCode",
@@ -58,7 +59,16 @@ function createWindow() {
     backgroundColor: "#0d1017",
     webPreferences: { contextIsolation: true },
   })
-  win.loadURL(`http://127.0.0.1:${PORT}`)
+  if (backendOk) {
+    win.loadURL(`http://127.0.0.1:${PORT}`)
+  } else {
+    win.loadURL("data:text/html;charset=utf-8," + encodeURIComponent(
+      '<body style="background:#0d1017;color:#e4e8f0;font-family:sans-serif;'
+      + 'display:flex;align-items:center;justify-content:center;height:100vh;margin:0">'
+      + '<div style="text-align:center"><h2>⚠️ 后端引擎启动失败</h2>'
+      + '<p style="color:#8b93a5">请确认解压完整(resources/backend 文件夹存在)<br>'
+      + '并尝试关闭杀毒软件后重新解压</p></div></body>'))
+  }
   win.on("closed", () => (win = null))
 }
 
@@ -68,7 +78,7 @@ else {
   app.on("second-instance", () => {
     if (win) { if (win.isMinimized()) win.restore(); win.focus() }
   })
-  app.whenReady().then(() => { startBackend(); waitServer(createWindow) })
+  app.whenReady().then(() => { startBackend(); waitServer((ok) => createWindow(ok)) })
   app.on("window-all-closed", () => {
     if (backendProc) { try { backendProc.kill() } catch (e) {} }
     app.quit()

@@ -60,7 +60,7 @@ jobs:
           $root = "package/NebulaCode"
           New-Item -ItemType Directory -Force -Path "$root/resources/backend", "$root/projects" | Out-Null
           Copy-Item electron/out/win-unpacked/* $root -Recurse -Force
-          Copy-Item backend/dist/NebulaCode-backend/* "$root/resources/backend/" -Recurse -Force
+          Copy-Item backend/dist/NebulaCode-backend "$root/resources/backend/" -Recurse -Force
           Copy-Item README.md $root/
           Compress-Archive -Path package/* -DestinationPath NebulaCode-Windows-x64.zip
 
