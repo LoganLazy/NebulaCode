@@ -13,6 +13,8 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
 from . import agent
+
+_dist = Path(__file__).resolve().parent.parent.parent / "frontend" / "dist"
 from .agent import resolve_approval
 
 app = FastAPI(title="AI Desk")
@@ -170,6 +172,10 @@ def approve(a: ApproveIn):
     print(f"[审批接口] request={a.request_id} allow={a.allow} found={ok}", flush=True)
     return {"code": 0 if ok else 1}
 
+
+if _dist.exists():
+    from fastapi.staticfiles import StaticFiles
+    app.mount("/", StaticFiles(directory=str(_dist), html=True), name="fe")
 
 if __name__ == "__main__":
     import uvicorn
