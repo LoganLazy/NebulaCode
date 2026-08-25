@@ -1,0 +1,12 @@
+{
+  "profiles": [
+    {
+      "id": "mp_96f0c1",
+      "name": "中转站",
+      "base": "https://ai.121628.xyz/v1",
+      "key": "sk-5oYNJv6sisWblgNqNoVhNxK76JVsx6sIKpx8nV2BKXBRiQiF",
+      "model": "deepseek-v4-flash-free"
+    }
+  ],
+  "active": "mp_96f0c1"
+}

@@ -23,6 +23,115 @@ app.add_middleware(
 )
 
 
+# ---------------- 模型方案管理 ----------------
+
+DATA_DIR = Path(__file__).resolve().parent / "data"
+DATA_DIR.mkdir(exist_ok=True)
+MODELS_FILE = DATA_DIR / "models.json"
+
+
+def _load_models() -> dict:
+    if MODELS_FILE.exists():
+        try:
+            return json.loads(MODELS_FILE.read_text(encoding="utf-8"))
+        except Exception:
+            pass
+    return {"profiles": [], "active": ""}
+
+
+def _save_models(cfg: dict):
+    MODELS_FILE.write_text(json.dumps(cfg, ensure_ascii=False, indent=2),
+                           encoding="utf-8")
+
+
+class ProfileIn(BaseModel):
+    id: str | None = None
+    name: str
+    base: str
+    key: str = ""
+    model: str
+
+
+@app.get("/api/models")
+def get_models():
+    return _load_models()
+
+
+class IdIn(BaseModel):
+    id: str
+
+
+@app.post("/api/models/profile")
+def save_profile(p: ProfileIn):
+    cfg = _load_models()
+    plist = cfg.setdefault("profiles", [])
+    if p.id:
+        for i, x in enumerate(plist):
+            if x["id"] == p.id:
+                newp = p.dict()
+                if not newp["key"]:  # 留空保留旧key
+                    newp["key"] = x["key"]
+                plist[i] = newp
+                break
+        else:
+            raise HTTPException(404, "方案不存在")
+    else:
+        import random
+        pid = "mp_" + "".join(random.choices("0123456789abcdef", k=6))
+        newp = p.dict()
+        newp["id"] = pid
+        plist.append(newp)
+    _save_models(cfg)
+    return {"code": 0, "id": (plist[-1]["id"] if not p.id else p.id)}
+
+
+@app.post("/api/models/delete")
+def delete_profile(b: IdIn):
+    cfg = _load_models()
+    cfg["profiles"] = [x for x in cfg.get("profiles", []) if x["id"] != b.id]
+    if cfg.get("active") == b.id:
+        cfg["active"] = ""
+    _save_models(cfg)
+    return {"code": 0}
+
+
+@app.post("/api/models/active")
+def set_active(b: IdIn):
+    cfg = _load_models()
+    if not any(x["id"] == b.id for x in cfg.get("profiles", [])):
+        raise HTTPException(404, "方案不存在")
+    cfg["active"] = b.id
+    _save_models(cfg)
+    return {"code": 0}
+
+
+class TestIn(BaseModel):
+    base: str
+    key: str = ""
+    model: str
+
+
+@app.post("/api/models/test")
+def test_profile(t: TestIn):
+    import httpx
+    try:
+        r = httpx.post(
+            t.base.rstrip("/") + "/chat/completions",
+            headers={"Authorization": f"Bearer {t.key}"},
+            json={"model": t.model,
+                  "messages": [{"role": "user", "content": "hi"}],
+                  "max_tokens": 5},
+            timeout=30)
+        r.raise_for_status()
+        return {"code": 0, "msg": f"连通 ✓ ({t.model})"}
+    except Exception as e:
+        msg = str(e)
+        if "401" in msg: msg = "Key无效或未授权(401)"
+        elif "404" in msg: msg = "地址或模型不存在(404)"
+        elif "timed out" in msg.lower(): msg = "连接超时"
+        return {"code": 1, "msg": msg}
+
+
 # ---------------- 资源监控 ----------------
 
 _net_last = {"t": time.time(), "sent": 0, "recv": 0}
@@ -103,13 +212,25 @@ def read_file(path: str, project: str):
 class AgentReq(BaseModel):
     project: str
     message: str
-    session_id: str
-    base: str = "https://api.deepseek.com"
-    key: str = ""
-    model: str = "deepseek-chat"
+    session_id: str = "main"
+    base: str | None = None
+    key: str | None = None
+    model: str | None = None
 
     class Config:
         extra = "ignore"
+
+
+def resolve_model(req: AgentReq) -> dict:
+    """前端显式传入优先; 否则用激活的方案"""
+    if req.base and req.key and req.model:
+        return {"base": req.base, "key": req.key, "model": req.model}
+    cfg = _load_models()
+    act = next((x for x in cfg.get("profiles", [])
+                if x["id"] == cfg.get("active")), None)
+    if act:
+        return {"base": act["base"], "key": act["key"], "model": act["model"]}
+    raise HTTPException(400, "没有已激活的模型方案，请先在设置里添加并启用一个")
 
 
 _sessions: dict[str, list[dict]] = {}
@@ -123,10 +244,7 @@ def _session_history(key: str) -> list[dict]:
 def agent_chat(req: AgentReq):
     if not os.path.isdir(req.project):
         raise HTTPException(400, f"项目目录不存在: {req.project}")
-    if not req.key:
-        raise HTTPException(400, "请先在设置中配置 API Key")
-
-    model_cfg = {"base": req.base, "key": req.key, "model": req.model}
+    model_cfg = resolve_model(req)
     skey = f"{req.project}::{req.session_id}"
     history = _session_history(skey)
     user_msg = {"role": "user", "content": req.message}
