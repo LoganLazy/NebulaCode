@@ -1,7 +1,18 @@
 const { app, BrowserWindow } = require("electron")
 const { spawn } = require("child_process")
 const path = require("path")
+const fs = require("fs")
 const http = require("http")
+
+app.disableHardwareAcceleration()  // 排除显卡渲染导致的黑屏
+
+let LOG = null
+function dlog(msg) {
+  try {
+    fs.appendFileSync(LOG || "aidek-debug.log",
+      `[${new Date().toISOString()}] ${msg}\n`)
+  } catch (e) {}
+}
 
 const PORT = 8790
 let backendProc = null
@@ -42,16 +53,17 @@ function startBackend() {
 
 function waitServer(cb, tries = 60) {
   const req = http.get(`http://127.0.0.1:${PORT}/api/sys/poll`, (res) => {
-    res.resume(); cb()
+    res.resume(); dlog("✓ 后端服务就绪"); cb()
   })
   req.on("error", () => {
-    if (tries-- <= 0) return cb()
-    setTimeout(() => waitServer(cb, tries), 800)
+    if (tries-- <= 0) { dlog("❌ 等待超时, 后端始终未就绪"); cb() }
+    else setTimeout(() => waitServer(cb, tries), 800)
   })
   req.setTimeout(1500, () => req.destroy())
 }
 
 function createWindow(backendOk) {
+  dlog("创建窗口, backendOk=" + backendOk)
   win = new BrowserWindow({
     width: 1400, height: 900,
     title: "NebulaCode",
@@ -72,6 +84,11 @@ function createWindow(backendOk) {
   win.on("closed", () => (win = null))
 }
 
+app.whenReady().then(() => {
+  try {
+    LOG = path.join(homeDir(), "aidek-debug.log")
+  } catch (e) {}
+})
 const gotLock = app.requestSingleInstanceLock()
 if (!gotLock) app.quit()
 else {

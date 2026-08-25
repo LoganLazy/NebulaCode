@@ -8,4 +8,13 @@ if home:
 import uvicorn  # noqa: E402
 
 if __name__ == "__main__":
-    uvicorn.run("app.main:app", host="127.0.0.1", port=8790, log_level="warning")
+    try:
+        uvicorn.run("app.main:app", host="127.0.0.1", port=8790,
+                    log_level="warning")
+    except Exception as e:
+        import traceback
+        err = traceback.format_exc()
+        with open(os.path.join(home, "server-error.txt"), "w",
+                  encoding="utf-8") as f:
+            f.write(err)
+        raise
