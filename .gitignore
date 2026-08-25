@@ -1,10 +1,22 @@
+# Python
 __pycache__/
 *.pyc
 backend/.venv/
+
+# 运行数据(含密钥, 不可上传)
+backend/data/
+backend/app/data/
 backend/.pid
 backend/last-run.log
+
+# 构建产物
 backend/dist/
 frontend/node_modules/
 frontend/dist/
+electron/node_modules/
+electron/out/
 runtime/
+
+# 其他
 *.sse
+.DS_Store

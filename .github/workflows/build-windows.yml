@@ -1,0 +1,71 @@
+name: Build Windows
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Setup Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Build frontend
+        working-directory: frontend
+        run: |
+          npm config set registry https://registry.npmmirror.com
+          npm ci || npm install --no-audit --no-fund
+          npm run build
+
+      - name: Install backend deps
+        working-directory: backend
+        run: |
+          pip install -r requirements.txt
+          pip install pyinstaller
+
+      - name: Build backend engine (PyInstaller onedir)
+        working-directory: backend
+        run: >-
+          pyinstaller --onedir --noconsole
+          --name AIDesk-backend server_entry.py
+          --paths .
+          --add-data "../frontend/dist;frontend_dist"
+          --hidden-import uvicorn.logging
+          --hidden-import uvicorn.loops.auto
+          --hidden-import uvicorn.protocols.http.auto
+          --hidden-import uvicorn.protocols.websockets.auto
+          --hidden-import uvicorn.lifespan.on
+          --hidden-import app.main
+
+      - name: Build Electron shell
+        working-directory: electron
+        run: |
+          npm ci || npm install --no-audit --no-fund
+          npx electron-builder --win dir
+
+      - name: Assemble portable package
+        shell: pwsh
+        run: |
+          $root = "package/AIDesk"
+          New-Item -ItemType Directory -Force -Path "$root/resources/backend", "$root/projects" | Out-Null
+          Copy-Item electron/out/win-unpacked/* $root -Recurse -Force
+          Copy-Item backend/dist/AIDesk-backend/* "$root/resources/backend/" -Recurse -Force
+          Copy-Item README.md $root/
+          Compress-Archive -Path package/* -DestinationPath AIDesk-Windows-x64.zip
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: AIDesk-Windows-x64
+          path: AIDesk-Windows-x64.zip

@@ -14,7 +14,13 @@ from pydantic import BaseModel
 
 from . import agent
 
-_dist = Path(__file__).resolve().parent.parent.parent / "frontend" / "dist"
+import sys as _sys
+
+_home = os.environ.get("AI_DESK_HOME")
+if getattr(_sys, "frozen", False) and _home:
+    _dist = Path(_home) / "frontend_dist"
+else:
+    _dist = Path(__file__).resolve().parent.parent.parent / "frontend" / "dist"
 from .agent import resolve_approval
 
 app = FastAPI(title="AI Desk")
@@ -94,8 +100,13 @@ def set_settings(body: dict):
 
 # ---------------- 模型方案管理 ----------------
 
-DATA_DIR = Path(__file__).resolve().parent / "data"
-DATA_DIR.mkdir(exist_ok=True)
+_home = os.environ.get("AI_DESK_HOME")
+BASE_DIR = (Path(_home) if _home else
+            (Path(sys.executable).resolve().parent
+             if getattr(sys, "frozen", False)
+             else Path(__file__).resolve().parent))
+DATA_DIR = BASE_DIR / "data"
+DATA_DIR.mkdir(parents=True, exist_ok=True)
 MODELS_FILE = DATA_DIR / "models.json"
 
 
@@ -302,7 +313,7 @@ def resolve_model(req: AgentReq) -> dict:
     raise HTTPException(400, "没有已激活的模型方案，请先在设置里添加并启用一个")
 
 
-SESSIONS_DIR = Path(__file__).resolve().parent / "data" / "sessions"
+SESSIONS_DIR = DATA_DIR / "sessions"
 SESSIONS_DIR.mkdir(parents=True, exist_ok=True)
 _sessions: dict[str, dict] = {}
 
