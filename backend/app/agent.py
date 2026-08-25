@@ -190,13 +190,14 @@ def _tool_write_file(root: str, args: dict, emit):
     old_content = fp.read_text(encoding="utf-8", errors="ignore") if fp.exists() else ""
 
     # 自动备份旧版本
+    backup_name = None
     if fp.exists():
         backup_dir = Path(root) / ".aideck" / "backups"
         backup_dir.mkdir(parents=True, exist_ok=True)
         stamp = time.strftime("%Y%m%d_%H%M%S")
         safe_name = fp.name.replace("/", "_")
-        (backup_dir / f"{stamp}_{safe_name}").write_text(
-            old_content, encoding="utf-8")
+        backup_name = f"{stamp}_{safe_name}"
+        (backup_dir / backup_name).write_text(old_content, encoding="utf-8")
 
     fp.parent.mkdir(parents=True, exist_ok=True)
     fp.write_text(new_content, encoding="utf-8")
@@ -208,7 +209,8 @@ def _tool_write_file(root: str, args: dict, emit):
     if len(diff) > 6000:
         diff = diff[:6000] + "\n...(diff截断)"
     emit({"type": "diff", "path": args.get("path"),
-          "diff": diff, "created": not bool(old_content)})
+          "diff": diff, "created": not bool(old_content),
+          "backup": backup_name})
     return (f"已写入 {len(new_content)} 字符"
             + (" (新建文件)" if not old_content else " (已备份旧版本)")), True
 

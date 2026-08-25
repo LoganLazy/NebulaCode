@@ -23,6 +23,58 @@ app.add_middleware(
 )
 
 
+# ---------------- 回滚 ----------------
+
+class RollbackIn(BaseModel):
+    project: str
+    path: str
+    backup: str
+
+
+class ListBkIn(BaseModel):
+    project: str
+    path: str
+
+
+@app.post("/api/backups/list")
+def backups_list(b: ListBkIn):
+    from .safety import safe_path
+    full, err = safe_path(b.project, b.path)
+    if err:
+        raise HTTPException(400, err)
+    bk_dir = Path(full).parent / ".aideck" / "backups"
+    name = Path(full).name
+    out = []
+    if bk_dir.exists():
+        for f in sorted(bk_dir.glob(f"*_{name}"), reverse=True):
+            out.append({"name": f.name,
+                        "time": time.strftime(
+                            "%Y-%m-%d %H:%M:%S",
+                            time.strptime(f.name.split("_")[0], "%Y%m%d_%H%M%S"))})
+    return {"backups": out[:20]}
+
+
+@app.post("/api/rollback")
+def rollback(b: RollbackIn):
+    from .safety import safe_path
+    full, err = safe_path(b.project, b.path)
+    if err:
+        raise HTTPException(400, err)
+    fp = Path(full)
+    bk_name = os.path.basename(b.backup)
+    bk = fp.parent / ".aideck" / "backups" / bk_name
+    if not bk.exists():
+        raise HTTPException(404, "备份不存在")
+    # 回滚前先备份当前版本(回滚本身可撤销)
+    if fp.exists():
+        cur_bk = fp.parent / ".aideck" / "backups" / (
+            "pre_rollback_" + time.strftime("%Y%m%d_%H%M%S") + "_" + fp.name)
+        cur_bk.write_text(fp.read_text(encoding="utf-8", errors="ignore"),
+                          encoding="utf-8")
+    fp.write_text(bk.read_text(encoding="utf-8", errors="ignore"), encoding="utf-8")
+    return {"code": 0, "msg": f"已回滚到 {bk_name}"}
+
+
 # ---------------- 模型方案管理 ----------------
 
 DATA_DIR = Path(__file__).resolve().parent / "data"

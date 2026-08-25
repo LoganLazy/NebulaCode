@@ -1,6 +1,13 @@
 <template>
   <div class="rpanel">
-    <div class="rp-head">📊 资源监控</div>
+    <div class="rp-head">
+      📊 资源监控
+      <span class="run-ctl" v-if="running !== undefined">
+        运行中 <b>{{ running }}</b>/{{ limit }}
+        <button @click="$emit('update:limit', Math.max(1, limit - 1))">－</button>
+        <button @click="$emit('update:limit', limit + 1)">＋</button>
+      </span>
+    </div>
 
     <div class="gauges">
       <div class="gauge">
@@ -39,6 +46,11 @@
 import { api } from "../api"
 
 export default {
+  props: {
+    running: { type: Number, default: undefined },
+    limit: { type: Number, default: 2 }
+  },
+  emits: ["update:limit"],
   data() {
     return { cpu: 0, mem: 0, memUsed: 0, memTotal: 0, disk: 0,
              up: 0, down: 0, procCpu: 0, procMem: 0,
@@ -100,6 +112,14 @@ export default {
 </script>
 
 <style scoped>
+.run-ctl { margin-left: auto; display: flex; align-items: center; gap: 4px;
+           font-size: 12px; }
+.run-ctl b { color: var(--warn); }
+.run-ctl button {
+  background: var(--panel2); color: var(--text);
+  border: 1px solid var(--border); border-radius: 5px;
+  width: 20px; height: 20px; cursor: pointer; line-height: 1;
+}
 .rpanel { padding: 16px; display: flex; flex-direction: column; gap: 12px; }
 .rp-head { font-weight: 700; color: var(--muted); font-size: 13px; letter-spacing: 1px; }
 

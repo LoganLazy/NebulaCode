@@ -38,6 +38,9 @@
         <div v-else-if="item.kind === 'diff'" class="diff-card">
           <div class="d-head">
             {{ item.created ? "🆕 新建文件" : "✏️ 修改文件" }} · {{ item.path }}
+            <button v-if="!item.created && item.backup && !item.rolled"
+                    class="rb-btn" @click="rollbackDiff(item)">↩ 回滚此改动</button>
+            <span v-if="item.rolled" class="rb-done">↩ 已回滚</span>
           </div>
           <details open>
             <summary>查看改动 ({{ diffLines(item.diff) }})</summary>
@@ -76,8 +79,10 @@
 import { ref, nextTick } from "vue"
 import { api, agentStream } from "../api"
 
-const props = defineProps({ project: String, model: Object })
-const emit = defineEmits(["changed"])
+const props = defineProps({ project: String, model: Object,
+  sessionId: { type: String, default: "main" },
+  canRun: { type: Boolean, default: true } })
+const emit = defineEmits(["changed", "running"])
 
 const draft = ref("")
 const busy = ref(false)
@@ -101,13 +106,33 @@ function argsText(item) {
   return a.path || ""
 }
 function diffArr(d) { return d.split("\n") }
+
+async function rollbackDiff(item) {
+  if (!confirm(`把 ${item.path} 回滚到本次修改前的版本？`)) return
+  try {
+    const r = await api.rollback(props.project, item.path, item.backup)
+    if (r.code === 0) {
+      item.rolled = true
+      timeline.value.push({ kind: "ai", text: `↩ 已回滚 ${item.path}（当前版本也已备份，可再次操作找回）` })
+      emit("changed")
+      scroll()
+    }
+  } catch (e) {
+    alert("回滚失败: " + e.message)
+  }
+}
 function diffLines(d) { return d.split("\n").filter(l => l.startsWith("+") || l.startsWith("-")).length }
 
 async function send() {
   const q = draft.value.trim()
   if (!q || busy.value || !props.project) return
+  if (!props.canRun) {
+    alert("已达并发任务上限，请等待其他任务完成或在右侧调高上限")
+    return
+  }
   draft.value = ""
   busy.value = true
+  emit("running", true)
   timeline.value.push({ kind: "user", text: q })
   scroll()
 
@@ -116,7 +141,7 @@ async function send() {
     await agentStream({
       project: props.project,
       message: q,
-      session_id: "main",
+      session_id: props.sessionId || "main",
       base: props.model.base,
       key: props.model.key,
       model: props.model.model
@@ -157,6 +182,7 @@ async function send() {
     timeline.value.push({ kind: "ai", text: "⚠️ " + e.message })
   }
   busy.value = false
+  emit("running", false)
   scroll()
 }
 
@@ -230,7 +256,15 @@ details pre { margin: 6px 0 0; font-size: 12px; line-height: 1.55;
               white-space: pre-wrap; word-break: break-all; max-height: 200px; overflow-y: auto; }
 
 .diff-card { border-left-color: var(--accent2); display: block; margin-left: 40px; }
-.d-head { font-weight: 600; font-size: 13px; margin-bottom: 4px; }
+.d-head { font-weight: 600; font-size: 13px; margin-bottom: 4px;
+          display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.rb-btn {
+  background: var(--panel); color: var(--warn);
+  border: 1px solid var(--warn); border-radius: 7px;
+  padding: 3px 9px; cursor: pointer; font-size: 12px; font-weight: normal;
+}
+.rb-btn:hover { background: rgba(255,180,84,.12); }
+.rb-done { color: var(--muted); font-size: 12px; font-weight: normal; }
 .diff-body {
   background: #0a0d13;
   padding: 10px 12px;

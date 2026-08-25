@@ -35,3 +35,23 @@ input, textarea, select {
 
 ::-webkit-scrollbar { width: 9px; height: 9px; }
 ::-webkit-scrollbar-thumb { background: #2c3444; border-radius: 5px; }
+
+.task-tabs {
+  display: flex; gap: 6px; align-items: center;
+  padding: 7px 14px;
+  background: var(--panel);
+  border-bottom: 1px solid var(--border);
+  overflow-x: auto;
+}
+.tab {
+  background: var(--panel2); color: var(--muted);
+  border: 1px solid var(--border); border-radius: 8px;
+  padding: 7px 13px; cursor: pointer; font-size: 13px;
+  display: flex; align-items: center; gap: 6px; white-space: nowrap;
+}
+.tab.active { border-color: var(--accent); color: var(--text); }
+.tab.running .t-dot { color: var(--warn); animation: blink 1s infinite; }
+.t-close { opacity: .45; padding: 0 2px; }
+.t-close:hover { opacity: 1; color: #ff9b9b; }
+.tab.add { border-style: dashed; }
+.limit-warn { color: var(--warn); font-size: 12.5px; white-space: nowrap; }

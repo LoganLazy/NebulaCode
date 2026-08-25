@@ -10,9 +10,28 @@
         {{ projectOpen ? "✓ 已打开" : "打开项目" }}
       </button>
       <button class="cfg-btn" @click="showCfg = true">⚙ 模型</button>
+      <span class="limit-ctl" title="并发任务上限">
+        🔀并发上限
+        <input type="number" min="1" max="6" v-model.number="runLimit" class="limit-input" />
+      </span>
     </header>
 
-    <!-- 三栏主体 -->
+    <!-- 任务标签栏 -->
+    <div class="task-tabs" v-if="projectOpen">
+      <button v-for="t in tasks" :key="t.id"
+              :class="['tab', { active: t.id === activeId, running: runningMap[t.id] }]"
+              @click="activeId = t.id">
+        <span class="t-dot" v-if="runningMap[t.id]">●</span>
+        {{ t.label }}
+        <span class="t-close" @click.stop="closeTask(t.id)">✕</span>
+      </button>
+      <button class="tab add" @click="addTask">＋ 新任务</button>
+      <span v-if="runningCount >= runLimit" class="limit-warn">
+        ⚠ 已达并发上限({{ runLimit }}), 请等任务完成或调高上限
+      </span>
+    </div>
+
+    <!-- 多实例面板(v-show保持状态) -->
     <main class="main">
       <section class="pane left">
         <FileTree v-if="projectOpen" :root="project" />
@@ -23,13 +42,17 @@
         </div>
       </section>
 
-      <section class="pane mid">
-        <ChatPanel :project="projectOpen ? project : ''" :model="activeModel"
-                   @changed="reloadStats" />
-      </section>
+      <template v-for="t in tasks" :key="t.id">
+        <section v-show="t.id === activeId" class="pane mid">
+          <ChatPanel :project="projectOpen ? project : ''" :model="activeModel"
+                     :session-id="t.id" :can-run="runningCount < runLimit"
+                     @changed="reloadStats" @running="setRunning(t.id, $event)" />
+        </section>
+      </template>
 
-      <section class="pane right">
-        <ResPanel />
+      <section class="pane right" v-if="tasks.length">
+        <ResPanel :running="runningCount" :limit="runLimit"
+                  @update:limit="runLimit = $event" />
       </section>
     </main>
 
@@ -113,6 +136,28 @@ const projectOpen = ref(false)
 const showCfg = ref(false)
 
 const mcfg = ref({ profiles: [], active: "" })
+const tasks = ref([])
+const activeId = ref("")
+const runningMap = ref({})
+const runLimit = ref(parseInt(localStorage.getItem("aidesk.limit") || "2"))
+
+const runningCount = computed(() =>
+  Object.values(runningMap.value).filter(Boolean).length)
+
+function addTask() {
+  const id = "task_" + Date.now().toString(36)
+  tasks.value.push({ id, label: `任务${tasks.value.length + 1}` })
+  activeId.value = id
+}
+function closeTask(id) {
+  const t = tasks.value.find(x => x.id === id)
+  if (runningMap.value[id]) return alert("该任务正在执行，请等待完成或刷新页面强制中断")
+  if (!confirm(`关闭「${t.label}」？(聊天记录将清除)`)) return
+  tasks.value = tasks.value.filter(x => x.id !== id)
+  if (activeId.value === id && tasks.value.length) activeId.value = tasks.value[0].id
+}
+function setRunning(id, state) { runningMap.value[id] = state }
+watch(runLimit, (v) => localStorage.setItem("aidesk.limit", String(v)))
 const editing = ref(null)
 const testing = ref(false)
 const testMsg = ref("")
