@@ -22,3 +22,8 @@ runtime/
 .DS_Store
 build/
 *.spec
+
+# PyInstaller本地测试产物
+backend/build/
+backend/dist/
+*.spec
