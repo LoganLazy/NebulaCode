@@ -62,6 +62,13 @@ function waitServer(cb, tries = 60) {
   req.setTimeout(1500, () => req.destroy())
 }
 
+const ERROR_PAGE = "data:text/html;charset=utf-8," + encodeURIComponent(
+  '<body style="background:#0d1017;color:#e4e8f0;font-family:sans-serif;'
+  + 'display:flex;align-items:center;justify-content:center;height:100vh;margin:0">'
+  + '<div style="text-align:center"><h2>⚠️ 页面加载失败</h2>'
+  + '<p style="color:#8b93a5">正在自动重试…若持续失败请把 aidek-debug.log 发给开发者</p></div></body>')
+
+
 function createWindow(backendOk) {
   dlog("创建窗口, backendOk=" + backendOk)
   win = new BrowserWindow({
@@ -69,17 +76,40 @@ function createWindow(backendOk) {
     title: "NebulaCode",
     autoHideMenuBar: true,
     backgroundColor: "#0d1017",
+    show: false,
     webPreferences: { contextIsolation: true },
   })
+
+  // 内容真正就绪后才显示窗口 —— 杜绝黑屏窗口
+  win.once("ready-to-show", () => {
+    dlog("✓ 页面ready-to-show, 显示窗口")
+    win.show()
+  })
+
+  let retries = 0
+  const loadApp = () => {
+    dlog(`加载应用界面(第${retries + 1}次尝试)`)
+    win.loadURL(`http://127.0.0.1:${PORT}`).catch((e) => {
+      dlog("loadURL异常: " + e.message)
+    })
+  }
+
+  win.webContents.on("did-fail-load", (e, code, desc, url, isMain) => {
+    if (!isMain) return
+    dlog(`did-fail-load code=${code} desc=${desc}`)
+    if (retries < 5) {
+      retries++
+      setTimeout(loadApp, 1500 * retries)
+    } else {
+      win.loadURL(ERROR_PAGE)
+    }
+  })
+  win.webContents.on("did-finish-load", () => dlog("✓ 页面加载完成"))
+
   if (backendOk) {
-    win.loadURL(`http://127.0.0.1:${PORT}`)
+    loadApp()
   } else {
-    win.loadURL("data:text/html;charset=utf-8," + encodeURIComponent(
-      '<body style="background:#0d1017;color:#e4e8f0;font-family:sans-serif;'
-      + 'display:flex;align-items:center;justify-content:center;height:100vh;margin:0">'
-      + '<div style="text-align:center"><h2>⚠️ 后端引擎启动失败</h2>'
-      + '<p style="color:#8b93a5">请确认解压完整(resources/backend 文件夹存在)<br>'
-      + '并尝试关闭杀毒软件后重新解压</p></div></body>'))
+    win.loadURL(ERROR_PAGE)
   }
   win.on("closed", () => (win = null))
 }
