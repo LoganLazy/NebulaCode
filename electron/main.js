@@ -53,7 +53,7 @@ function startBackend() {
 
 function waitServer(cb, tries = 60) {
   const req = http.get(`http://127.0.0.1:${PORT}/api/sys/poll`, (res) => {
-    res.resume(); dlog("✓ 后端服务就绪"); cb()
+    res.resume(); dlog("✓ 后端服务就绪"); cb(true)
   })
   req.on("error", () => {
     if (tries-- <= 0) { dlog("❌ 等待超时, 后端始终未就绪"); cb() }
