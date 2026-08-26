@@ -14,12 +14,9 @@ from pydantic import BaseModel
 
 from . import agent
 
-import sys as _sys
-
-_home = os.environ.get("NEBULACODE_HOME")
-if getattr(_sys, "frozen", False):
+if getattr(sys, "frozen", False):
     # PyInstaller把--add-data的内容解到 _MEIPASS 临时目录
-    _dist = Path(getattr(_sys, "_MEIPASS")) / "frontend_dist"
+    _dist = Path(getattr(sys, "_MEIPASS")) / "frontend_dist"
 else:
     _dist = Path(__file__).resolve().parent.parent.parent / "frontend" / "dist"
 from .agent import resolve_approval
@@ -100,15 +97,8 @@ def set_settings(body: dict):
 
 
 # ---------------- 模型方案管理 ----------------
-
-_home = os.environ.get("NEBULACODE_HOME")
-BASE_DIR = (Path(_home) if _home else
-            (Path(sys.executable).resolve().parent
-             if getattr(sys, "frozen", False)
-             else Path(__file__).resolve().parent))
-DATA_DIR = BASE_DIR / "data"
-DATA_DIR.mkdir(parents=True, exist_ok=True)
-MODELS_FILE = DATA_DIR / "models.json"
+# 数据目录统一由 app.paths 定义(NEBULACODE_HOME > exe旁 > 开发目录)
+from .paths import DATA_DIR, MODELS_FILE
 
 
 def _load_models() -> dict:
@@ -216,6 +206,20 @@ def test_profile(t: TestIn):
 # ---------------- 资源监控 ----------------
 
 _net_last = {"t": time.time(), "sent": 0, "recv": 0}
+
+
+VERSION = "0.2.0"
+
+
+@app.get("/api/version")
+def version():
+    from . import settings as _st
+    return {
+        "version": VERSION,
+        "data_dir": str(DATA_DIR),
+        "auto_git": bool(_st.get("AUTO_GIT_COMMIT")),
+        "cwd": os.getcwd(),
+    }
 
 
 @app.get("/api/sys/poll")

@@ -146,6 +146,7 @@
   ('app', '/home/lazyease/ai-desk/backend/app/__init__.py', 'PYMODULE'),
   ('app.agent', '/home/lazyease/ai-desk/backend/app/agent.py', 'PYMODULE'),
   ('app.main', '/home/lazyease/ai-desk/backend/app/main.py', 'PYMODULE'),
+  ('app.paths', '/home/lazyease/ai-desk/backend/app/paths.py', 'PYMODULE'),
   ('app.repomap', '/home/lazyease/ai-desk/backend/app/repomap.py', 'PYMODULE'),
   ('app.safety', '/home/lazyease/ai-desk/backend/app/safety.py', 'PYMODULE'),
   ('app.settings',

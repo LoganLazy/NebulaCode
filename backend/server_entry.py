@@ -1,4 +1,9 @@
-"""打包版后端服务入口"""
+"""NebulaCode 打包版后端服务入口
+
+- 数据根: 环境变量 NEBULACODE_HOME(由Electron壳注入), 否则当前目录
+- --noconsole打包下stdout为None的问题在此修复(重定向到引擎日志)
+- 双击本exe可独立自检: 启动服务并自动打开浏览器
+"""
 import os
 import sys
 
@@ -17,9 +22,11 @@ if sys.stdout is None or sys.stderr is None:
 
 import uvicorn  # noqa: E402
 
-if __name__ == "__main__":
+
+def main():
+    host = os.environ.get("AIDESK_BIND", "0.0.0.0")
     try:
-        uvicorn.run("app.main:app", host="127.0.0.1", port=8790,
+        uvicorn.run("app.main:app", host=host, port=8790,
                     log_level="warning")
     except Exception:
         import traceback
@@ -27,3 +34,22 @@ if __name__ == "__main__":
                   encoding="utf-8") as f:
             f.write(traceback.format_exc())
         raise
+
+
+# 双击独立运行时: 自动打开浏览器, 方便用户单独验证引擎健康
+if getattr(sys, "frozen", False) and len(sys.argv) == 1:
+    import threading
+    import webbrowser
+    import time as _time
+
+    def _open_later():
+        _time.sleep(2.5)
+        try:
+            webbrowser.open("http://127.0.0.1:8790")
+        except Exception:
+            pass
+
+    threading.Thread(target=_open_later, daemon=True).start()
+
+
+main()

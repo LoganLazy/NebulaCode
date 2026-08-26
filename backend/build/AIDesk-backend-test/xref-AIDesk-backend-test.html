@@ -229,6 +229,8 @@ imports:
  &#8226;   <a href="#sre_parse">sre_parse</a>
  &#8226;   <a href="#stat">stat</a>
  &#8226;   <a href="#sys">sys</a>
+ &#8226;   <a href="#threading">threading</a>
+ &#8226;   <a href="#time">time</a>
  &#8226;   <a href="#traceback">traceback</a>
  &#8226;   <a href="#types">types</a>
  &#8226;   <a href="#uvicorn">uvicorn</a>
@@ -239,6 +241,7 @@ imports:
  &#8226;   <a href="#uvicorn.protocols.websockets.auto">uvicorn.protocols.websockets.auto</a>
  &#8226;   <a href="#warnings">warnings</a>
  &#8226;   <a href="#weakref">weakref</a>
+ &#8226;   <a href="#webbrowser">webbrowser</a>
 
   </div>
 
@@ -3321,6 +3324,7 @@ imported by:
     <a href="#app">app</a>
  &#8226;   <a href="#app.agent">app.agent</a>
  &#8226;   <a href="#app.main">app.main</a>
+ &#8226;   <a href="#app.paths">app.paths</a>
  &#8226;   <a href="#app.repomap">app.repomap</a>
  &#8226;   <a href="#app.safety">app.safety</a>
  &#8226;   <a href="#app.settings">app.settings</a>
@@ -3369,6 +3373,7 @@ imported by:
 imports:
     <a href="#app">app</a>
  &#8226;   <a href="#app.agent">app.agent</a>
+ &#8226;   <a href="#app.paths">app.paths</a>
  &#8226;   <a href="#app.safety">app.safety</a>
  &#8226;   <a href="#app.settings">app.settings</a>
  &#8226;   <a href="#asyncio">asyncio</a>
@@ -3393,6 +3398,26 @@ imports:
   <div class="import">
 imported by:
     <a href="#server_entry.py">server_entry.py</a>
+
+  </div>
+
+</div>
+
+<div class="node">
+  <a name="app.paths"></a>
+  <a target="code" href="/home/lazyease/ai-desk/backend/app/paths.py" type="text/plain"><tt>app.paths</tt></a>
+<span class="moduletype">SourceModule</span>  <div class="import">
+imports:
+    <a href="#app">app</a>
+ &#8226;   <a href="#os">os</a>
+ &#8226;   <a href="#pathlib">pathlib</a>
+ &#8226;   <a href="#sys">sys</a>
+
+  </div>
+  <div class="import">
+imported by:
+    <a href="#app.main">app.main</a>
+ &#8226;   <a href="#app.settings">app.settings</a>
 
   </div>
 
@@ -3447,8 +3472,8 @@ imported by:
 <span class="moduletype">SourceModule</span>  <div class="import">
 imports:
     <a href="#app">app</a>
+ &#8226;   <a href="#app.paths">app.paths</a>
  &#8226;   <a href="#json">json</a>
- &#8226;   <a href="#pathlib">pathlib</a>
 
   </div>
   <div class="import">
@@ -15801,6 +15826,7 @@ imported by:
  &#8226;   <a href="#anyio.abc._eventloop">anyio.abc._eventloop</a>
  &#8226;   <a href="#app.agent">app.agent</a>
  &#8226;   <a href="#app.main">app.main</a>
+ &#8226;   <a href="#app.paths">app.paths</a>
  &#8226;   <a href="#app.repomap">app.repomap</a>
  &#8226;   <a href="#app.safety">app.safety</a>
  &#8226;   <a href="#argparse">argparse</a>
@@ -15997,9 +16023,9 @@ imported by:
     <a href="#anyio._core._fileio">anyio._core._fileio</a>
  &#8226;   <a href="#app.agent">app.agent</a>
  &#8226;   <a href="#app.main">app.main</a>
+ &#8226;   <a href="#app.paths">app.paths</a>
  &#8226;   <a href="#app.repomap">app.repomap</a>
  &#8226;   <a href="#app.safety">app.safety</a>
- &#8226;   <a href="#app.settings">app.settings</a>
  &#8226;   <a href="#click._termui_impl">click._termui_impl</a>
  &#8226;   <a href="#dotenv.main">dotenv.main</a>
  &#8226;   <a href="#fastapi.encoders">fastapi.encoders</a>
@@ -22280,6 +22306,7 @@ imported by:
  &#8226;   <a href="#anyio.to_thread">anyio.to_thread</a>
  &#8226;   <a href="#app.agent">app.agent</a>
  &#8226;   <a href="#app.main">app.main</a>
+ &#8226;   <a href="#app.paths">app.paths</a>
  &#8226;   <a href="#argparse">argparse</a>
  &#8226;   <a href="#ast">ast</a>
  &#8226;   <a href="#asyncio">asyncio</a>
@@ -22681,6 +22708,7 @@ imported by:
  &#8226;   <a href="#psutil">psutil</a>
  &#8226;   <a href="#psutil._common">psutil._common</a>
  &#8226;   <a href="#queue">queue</a>
+ &#8226;   <a href="#server_entry.py">server_entry.py</a>
  &#8226;   <a href="#socketserver">socketserver</a>
  &#8226;   <a href="#subprocess">subprocess</a>
  &#8226;   <a href="#uvicorn.server">uvicorn.server</a>
@@ -22747,6 +22775,7 @@ imported by:
  &#8226;   <a href="#psutil._psposix">psutil._psposix</a>
  &#8226;   <a href="#queue">queue</a>
  &#8226;   <a href="#random">random</a>
+ &#8226;   <a href="#server_entry.py">server_entry.py</a>
  &#8226;   <a href="#socketserver">socketserver</a>
  &#8226;   <a href="#ssl">ssl</a>
  &#8226;   <a href="#subprocess">subprocess</a>
@@ -25921,6 +25950,7 @@ imports:
   <div class="import">
 imported by:
     <a href="#click._termui_impl">click._termui_impl</a>
+ &#8226;   <a href="#server_entry.py">server_entry.py</a>
 
   </div>
 
