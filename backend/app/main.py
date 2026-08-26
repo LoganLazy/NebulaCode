@@ -17,8 +17,9 @@ from . import agent
 import sys as _sys
 
 _home = os.environ.get("NEBULACODE_HOME")
-if getattr(_sys, "frozen", False) and _home:
-    _dist = Path(_home) / "frontend_dist"
+if getattr(_sys, "frozen", False):
+    # PyInstaller把--add-data的内容解到 _MEIPASS 临时目录
+    _dist = Path(getattr(_sys, "_MEIPASS")) / "frontend_dist"
 else:
     _dist = Path(__file__).resolve().parent.parent.parent / "frontend" / "dist"
 from .agent import resolve_approval
