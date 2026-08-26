@@ -20,3 +20,5 @@ runtime/
 # 其他
 *.sse
 .DS_Store
+build/
+*.spec
